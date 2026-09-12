@@ -22,7 +22,8 @@ COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/.next ./.next
 COPY --from=build /app/public ./public
 COPY --from=build /app/next.config.ts ./
-RUN mkdir -p /app/data && chown -R node:node /app
-USER node
+# Контейнер работает от root: примонтированный volume принадлежит root,
+# а libSQL должен иметь права на запись в /app/data.
+RUN mkdir -p /app/data
 EXPOSE 3000
 CMD ["npm", "start"]
