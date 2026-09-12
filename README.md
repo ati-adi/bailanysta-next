@@ -1,36 +1,258 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Bailanysta
 
-## Getting Started
+**Bailanysta** («на связи» по-казахски) — небольшая социальная сеть: посты, лента, профили, подписки, лайки, комментарии, уведомления, поиск по хэштегам и AI-помощник для написания постов.
 
-First, run the development server:
+Стек: **Next.js 16 (App Router) + TypeScript + Tailwind CSS 4 + libSQL/SQLite**, деплой на **Railway** (Docker + persistent volume).
+
+- 🌐 **Демо**: см. раздел [Деплой](#деплой) — ссылка ниже.
+- 🔑 Демо-аккаунты: `aisha`, `daniyar`, `madina`, `arman` (пароль `password`) или зарегистрируйте свой.
+
+---
+
+## Содержание
+
+1. [Функциональность](#функциональность)
+2. [Установка и запуск](#установка-и-запуск)
+3. [Почему такой стек](#почему-такой-стек)
+4. [Процесс проектирования и разработки](#процесс-проектирования-и-разработки)
+5. [Архитектура и дерево компонентов](#архитектура-и-дерево-компонентов)
+6. [API](#api)
+7. [Уникальные подходы и методологии](#уникальные-подходы-и-методологии)
+8. [Компромиссы](#компромиссы)
+9. [Известные проблемы](#известные-проблемы)
+10. [Деплой](#деплой)
+
+---
+
+## Функциональность
+
+| Уровень | Требование | Статус |
+|---|---|---|
+| 1 | Страница профиля с созданием постов | ✅ `/profile/[username]` — на своей странице сверху композер |
+| 1 | Лента постов (автор, текст) | ✅ `/` — вкладки «Все» / «Подписки», курсорная пагинация |
+| 1 | Логичная структура и дерево компонентов | ✅ см. [Архитектура](#архитектура-и-дерево-компонентов) |
+| 2 | Собственный API + интеграция | ✅ 17 route handlers в `src/app/api/**`, клиент `src/lib/api-client.ts` |
+| 2 | Роутинг между страницами | ✅ App Router: `/`, `/profile/[username]`, `/post/[id]`, `/search`, `/notifications`, `/login`, `/register` |
+| 3 | Деплой | ✅ Railway (Docker + volume), см. [Деплой](#деплой) |
+| Бонус | Светлая/тёмная тема с сохранением | ✅ `localStorage` + инлайн-скрипт до гидрации (нет «вспышки») |
+| Бонус | Лайки / комментарии | ✅ оптимистичные лайки, комментарии на странице поста |
+| Бонус | Создание и редактирование своих постов | ✅ inline-редактирование, удаление |
+| Бонус | Подписки | ✅ follow/unfollow, лента «Подписки», счётчики |
+| Бонус | Уведомления | ✅ о лайках, комментариях, подписках; бейдж непрочитанных |
+| Бонус | AI-генерация контента | ✅ Claude API (`/api/ai/generate`), вызов только с сервера; без ключа — офлайн-шаблон |
+| Бонус | Лоадеры и скелетоны | ✅ `loading.tsx` для сегментов + скелетоны в клиентских списках |
+| Бонус | Поиск по словам/хэштегам | ✅ `/search?q=` — посты, люди, блок «Тренды» |
+
+Дополнительно: аутентификация (регистрация/вход, bcrypt, HttpOnly cookie-сессии), редактирование профиля, адаптивная вёрстка, сид-данные при первом запуске.
+
+---
+
+## Установка и запуск
+
+Требования: **Node.js 20+** (разрабатывалось на 26), npm.
 
 ```bash
+git clone https://github.com/ati-adi/bailanysta-next.git
+cd bailanysta
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+# http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Ничего настраивать не нужно: при первом запуске создаётся файл `data/bailanysta.db`, применяется схема и загружаются демо-данные.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Переменные окружения (все опциональны, см. `.env.example`):
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Переменная | Назначение |
+|---|---|
+| `DATABASE_URL` | Путь к SQLite (`file:./data/bailanysta.db` по умолчанию) |
+| `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN` | Использовать облачный libSQL (Turso) вместо файла — для serverless-хостинга |
+| `ANTHROPIC_API_KEY` | Включает реальную AI-генерацию через Claude. Без ключа работает заглушка |
 
-## Learn More
+Прод-сборка:
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+npm run build
+npm start
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Docker:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+docker build -t bailanysta .
+docker run -p 3000:3000 -v bailanysta-data:/app/data bailanysta
+```
 
-## Deploy on Vercel
+Проверки: `npm run lint`, `npx tsc --noEmit`.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+---
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Почему такой стек
+
+**Next.js 16 (App Router)** — одним фреймворком закрываются фронтенд, роутинг, SSR и бэкенд (Route Handlers). Не нужно поднимать отдельный Express-сервер и настраивать CORS, при этом «серверная часть» остаётся настоящей: все обращения к БД и к внешнему AI-API выполняются только на сервере. Server Components дают быстрый первый рендер (профиль, тренды рендерятся на сервере), а `loading.tsx` — бесплатные скелетоны при навигации.
+
+**TypeScript** — единые DTO-типы (`src/lib/types.ts`) используются и в сервисах, и в route handlers, и в компонентах. Рефакторинг безопасен, ошибки ловятся при `tsc`.
+
+**Tailwind CSS 4** — быстрая вёрстка без отдельных CSS-файлов на компонент; дизайн-токены (цвета) вынесены в CSS-переменные, поэтому тёмная тема — это просто другой набор переменных под классом `.dark`.
+
+**libSQL / SQLite (`@libsql/client`)** вместо Postgres + ORM:
+- Нулевая настройка локально — БД это файл, проект запускается одной командой `npm run dev`.
+- Тот же клиент и тот же SQL работают с облачным Turso (для serverless) — переключение одной переменной.
+- Для учебного проекта с десятками пользователей SQLite более чем достаточен, а «сырой» SQL нагляднее показывает, что происходит (составные индексы, курсорная пагинация, подзапросы для счётчиков).
+- ORM (Prisma/Drizzle) сознательно не взят: он бы добавил генерацию клиента, миграции и время сборки, не дав ощутимой пользы на 7 таблицах.
+
+**bcryptjs + cookie-сессии в БД** вместо NextAuth/Clerk — прозрачно, без внешних сервисов и OAuth-настройки; сессия отзывается удалением строки.
+
+**Claude API (`@anthropic-ai/sdk`)** — официальный SDK, вызов на сервере, включён серверный fallback на случай отказа модели по политике.
+
+**Railway** — есть persistent volume, поэтому SQLite-файл переживает редеплой; деплой из Dockerfile воспроизводим локально.
+
+---
+
+## Процесс проектирования и разработки
+
+1. **Разбор требований** → таблица «уровень → фича → страница/эндпоинт» (см. выше). Сразу решено, что все бонусы реализуемы в разумный срок, если не тащить тяжёлую инфраструктуру.
+2. **Модель данных**. 7 таблиц: `users`, `sessions`, `posts`, `likes`, `comments`, `follows`, `notifications`. Лайки и подписки — составные первичные ключи (идемпотентные `INSERT OR IGNORE`). Уведомления — отдельная таблица, создаётся в сервисах при лайке/комментарии/подписке и никогда при действии над собой.
+3. **Слои**. Снизу вверх: `db.ts` (клиент + схема + сид) → `services/*` (доменная логика, валидация, DTO) → `app/api/**` (тонкие route handlers) → `api-client.ts` (fetch-обёртка) → хуки и компоненты. Страницы-Server Components могут ходить в сервисы напрямую, минуя HTTP.
+4. **API-first**. Сначала были написаны и проверены через `curl` все эндпоинты (регистрация → пост → лайк → комментарий → подписка → уведомления → поиск → удаление), затем UI.
+5. **UI**. Примитивы (`ui/*`) → доменные компоненты (`post/*`, `profile/*`, …) → страницы. Каждая страница — тонкая: получает данные и собирает компоненты.
+6. **Проверка**: `tsc`, `eslint` (включая новые правила React Compiler-lint), `next build`, e2e-прогон API на прод-сборке.
+7. **Деплой**: Dockerfile → Railway с volume на `/app/data`.
+
+---
+
+## Архитектура и дерево компонентов
+
+```
+src/
+├── app/                         # маршруты (App Router)
+│   ├── layout.tsx               # читает сессию → AuthProvider, ThemeProvider, Header
+│   ├── page.tsx                 # /            лента  (Trending [RSC] + Feed [client])
+│   ├── profile/[username]/      # профиль: page (RSC) + loading + not-found
+│   ├── post/[id]/               # пост + комментарии
+│   ├── search/                  # поиск
+│   ├── notifications/           # уведомления (redirect на /login если гость)
+│   ├── login/, register/
+│   └── api/                     # REST-бэкенд
+│       ├── auth/{register,login,logout,me}
+│       ├── posts, posts/[id], posts/[id]/{like,comments}
+│       ├── comments/[id]
+│       ├── users/[username], users/[username]/follow
+│       ├── profile, notifications, notifications/read
+│       ├── search
+│       └── ai/generate          # ← единственный вызов внешнего сервиса, только сервер
+├── components/
+│   ├── providers/  AuthProvider (текущий юзер + unread), ThemeProvider (useSyncExternalStore)
+│   ├── layout/     Header, ThemeToggle
+│   ├── ui/         Button, Avatar, Card, Field(Input/Textarea/Label/ErrorText), Skeleton, EmptyState
+│   ├── post/       Feed → PostComposer(+AiAssist) / PostList → PostCard → PostContent, LikeButton
+│   │               PostDetail → PostCard + Comments;  usePosts (хук пагинации)
+│   ├── comment/    Comments
+│   ├── profile/    ProfileHeader(+FollowButton, inline-редактирование), ProfilePosts
+│   ├── notifications/ NotificationList
+│   ├── search/     SearchBar, SearchResults, Trending (RSC)
+│   ├── auth/       AuthForm (login/register)
+│   └── ai/         AiAssist
+└── lib/
+    ├── db.ts        libSQL-клиент, схема, выбор источника (файл / Turso / memory)
+    ├── seed.ts      демо-данные
+    ├── auth.ts      сессии (cookie ↔ таблица sessions), getCurrentUser/requireUser
+    ├── password.ts  bcrypt
+    ├── api.ts       withErrors(): доменные ошибки → HTTP-статусы
+    ├── api-client.ts fetch-обёртка для браузера
+    ├── types.ts     DTO
+    ├── format.ts    timeAgo, инициалы, regex хэштегов
+    └── services/    users, posts (+comments, likes, trending), notifications, ai
+```
+
+Принципы:
+- **Server Components по умолчанию**, `"use client"` только там, где есть состояние или обработчики. Данные для первого рендера (профиль, пост, тренды) берутся на сервере из сервисного слоя; всё интерактивное (лента, лайки, комментарии, AI) идёт через REST API.
+- **Состояние ленты живёт в одном хуке `usePosts`** и переиспользуется на главной, в профиле и в поиске. Мутации (`prepend`, `replace`, `remove`) обновляют список без перезагрузки.
+- **Оптимистичные обновления** для лайков и подписок с откатом при ошибке.
+- **Тема** — источник истины это класс на `<html>`; React подписан через `useSyncExternalStore`, поэтому нет `setState` в эффектах и нет рассинхрона при гидрации.
+
+---
+
+## API
+
+Все ответы — JSON. Ошибки — `{ "error": "текст" }` с кодом 400/401/404/500. Авторизация — cookie `bailanysta_session`.
+
+| Метод | Путь | Описание |
+|---|---|---|
+| POST | `/api/auth/register` | `{username, displayName, password}` → создаёт пользователя и сессию |
+| POST | `/api/auth/login` | `{username, password}` |
+| POST | `/api/auth/logout` | |
+| GET | `/api/auth/me` | текущий пользователь + число непрочитанных |
+| GET | `/api/posts?cursor&limit&author&q&mode=all\|following` | лента с курсорной пагинацией |
+| POST | `/api/posts` | `{content}` (≤500 символов) |
+| GET/PATCH/DELETE | `/api/posts/:id` | получить / изменить / удалить (только автор) |
+| POST/DELETE | `/api/posts/:id/like` | лайк / убрать лайк |
+| GET/POST | `/api/posts/:id/comments` | комментарии |
+| DELETE | `/api/comments/:id` | удалить свой комментарий |
+| GET | `/api/users/:username` | профиль со счётчиками |
+| POST/DELETE | `/api/users/:username/follow` | подписаться / отписаться |
+| PATCH | `/api/profile` | `{displayName?, bio?}` |
+| GET | `/api/notifications?cursor` | уведомления |
+| POST | `/api/notifications/read` | отметить все прочитанными |
+| GET | `/api/search?q` | посты + люди (+ тренды при пустом `q`) |
+| POST | `/api/ai/generate` | `{topic, tone}` → `{text, source: "claude"\|"fallback"}` |
+
+---
+
+## Уникальные подходы и методологии
+
+- **Один код — три режима хранения.** `db.ts` выбирает источник по окружению: локальный файл, Turso (облако) или `:memory:` на serverless без БД. Схема применяется `CREATE TABLE IF NOT EXISTS` при первом обращении, сид — если таблица пользователей пуста. Проект «просто работает» после `git clone`.
+- **Ошибки как значения домена.** Сервисы бросают `ValidationError`/`AuthError`; единственная обёртка `withErrors()` превращает их в 400/401, остальное — в 500 с логом. Route handlers остаются в 5–10 строк.
+- **Курсорная пагинация по `created_at`** вместо offset: лента не «прыгает», когда появляются новые посты; тот же механизм для уведомлений.
+- **Тема без «вспышки».** Инлайн-скрипт в `<head>` выставляет `.dark` до первого кадра, а `useSyncExternalStore` синхронизирует React с DOM, не с localStorage.
+- **Оптимистичный UI с откатом** — лайки и подписки реагируют мгновенно, при ошибке сети возвращаются к серверному состоянию.
+- **AI с деградацией.** Без ключа эндпоинт остаётся рабочим (детерминированный шаблонный генератор) и честно сообщает `source: "fallback"`; UI показывает, чем сгенерирован текст. С ключом — Claude через официальный SDK с серверным fallback при отказе модели.
+- **Хэштеги без отдельной таблицы**: парсятся регуляркой из текста при рендере (кликабельны) и при расчёте трендов по последним 200 постам.
+
+---
+
+## Компромиссы
+
+| Решение | Плюс | Минус / что было бы «по-взрослому» |
+|---|---|---|
+| SQLite-файл вместо Postgres | нулевая настройка, один файл | один инстанс приложения; для горизонтального масштабирования — Turso/Postgres |
+| Сырой SQL вместо ORM | прозрачность, скорость сборки | нет автогенерации типов, ручной маппинг строк → DTO |
+| Счётчики лайков/комментариев подзапросами | всегда точные, без денормализации | на больших объёмах нужны кэшированные колонки-счётчики |
+| Поиск через `LIKE '%…%'` | просто, работает с хэштегами и словами | не масштабируется; в проде — FTS5 или отдельный индекс |
+| Сессии в БД + cookie вместо JWT | мгновенный отзыв, нет секретов на клиенте | запрос к БД на каждый рендер layout |
+| Комментарии на отдельной странице `/post/[id]` | проще состояние, есть постоянная ссылка | нет раскрытия комментариев прямо в ленте |
+| «Показать ещё» вместо бесконечного скролла | предсказуемо, доступно с клавиатуры | менее «социально-сетевой» UX |
+| Уведомления — polling нет, обновляются при навигации | простота | нет realtime (WebSocket/SSE) |
+| Пароли демо-аккаунтов известны | удобно проверять | это демо; в реальном продукте сид отключается |
+
+---
+
+## Известные проблемы
+
+- **Статус 200 вместо 404** для несуществующего профиля/поста: страницы стримятся (есть `loading.tsx`), заголовки уходят раньше, чем срабатывает `notFound()`. Пользователь видит корректную страницу «не найдено», но HTTP-код — 200. Лечится отказом от `loading.tsx` на этих сегментах.
+- **In-memory режим на serverless** (Vercel без Turso): данные сбрасываются при перезапуске функции и не разделяются между инстансами. Это осознанный демо-fallback; для Vercel нужен Turso.
+- **Один инстанс приложения** при SQLite-файле: два контейнера с общим томом не поддерживаются.
+- **Тренды считаются на лету** по последним 200 постам на каждый рендер главной — на большой базе нужен кэш (`"use cache"` + `cacheLife`).
+- Нет загрузки изображений, восстановления пароля, ограничения частоты запросов (rate limiting).
+- Расширение Chrome для автоматизированной визуальной проверки в момент разработки не отвечало, поэтому UI проверялся сборкой, SSR-выводом и API-тестами, а не скриншотами.
+
+---
+
+## Деплой
+
+Приложение развёрнуто на **Railway** из Dockerfile с volume, примонтированным в `/app/data` (там лежит SQLite-файл, данные переживают редеплой).
+
+Повторить деплой самостоятельно:
+
+```bash
+npm i -g @railway/cli && railway login
+railway init            # создать проект
+railway volume add --mount-path /app/data
+railway variables --set DATABASE_URL=file:/app/data/bailanysta.db
+railway up              # сборка по Dockerfile
+railway domain          # получить публичный URL
+```
+
+Альтернативы:
+- **Vercel**: `vercel deploy` + переменные `TURSO_DATABASE_URL`/`TURSO_AUTH_TOKEN` (бесплатная БД на turso.tech). Без них приложение работает в in-memory демо-режиме.
+- **Любой VPS**: `docker run -p 3000:3000 -v bailanysta-data:/app/data ghcr.io/…` или `npm run build && npm start`.
