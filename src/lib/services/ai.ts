@@ -82,7 +82,8 @@ export async function generatePost(input: GenerateInput): Promise<GenerateResult
 /** Офлайн-заглушка: собирает правдоподобный пост из шаблонов. */
 export function fallbackGenerate({ topic, tone }: GenerateInput): string {
   const clean = topic.trim().replace(/\s+/g, " ");
-  const tag = "#" + clean.split(" ").slice(0, 2).join("").replace(/[^\p{L}\p{N}_]/gu, "").toLowerCase();
+  const words = clean.split(" ").filter((w) => w.length > 2).slice(0, 2);
+  const tag = "#" + (words.length ? words : clean.split(" ").slice(0, 1)).join("").replace(/[^\p{L}\p{N}_]/gu, "").toLowerCase();
   const templates: Record<AiTone, string[]> = {
     casual: [
       `Сегодня думал(а) про ${clean}. Чем больше копаю, тем интереснее становится. Кто ещё в теме? ${tag}`,

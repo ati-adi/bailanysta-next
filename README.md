@@ -4,7 +4,7 @@
 
 Стек: **Next.js 16 (App Router) + TypeScript + Tailwind CSS 4 + libSQL/SQLite**, деплой на **Railway** (Docker + persistent volume).
 
-- 🌐 **Демо**: см. раздел [Деплой](#деплой) — ссылка ниже.
+- 🌐 **Демо**: https://web-production-56aba.up.railway.app
 - 🔑 Демо-аккаунты: `aisha`, `daniyar`, `madina`, `arman` (пароль `password`) или зарегистрируйте свой.
 
 ---
@@ -241,7 +241,7 @@ src/
 
 ## Деплой
 
-Приложение развёрнуто на **Railway** из Dockerfile с volume, примонтированным в `/app/data` (там лежит SQLite-файл, данные переживают редеплой).
+Приложение развёрнуто на **Railway**: **https://web-production-56aba.up.railway.app** — из Dockerfile с volume, примонтированным в `/app/data` (там лежит SQLite-файл, данные переживают редеплой).
 
 Повторить деплой самостоятельно:
 
